@@ -1,0 +1,20 @@
+[Unit]
+Description=GTFS-Realtime filtering proxy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gtfsrtfilter
+Group=gtfsrtfilter
+WorkingDirectory=/opt/gtfs-rt-filter
+ExecStart=/opt/gtfs-rt-filter/venv/bin/gtfs-rt-filter --config /etc/gtfs-rt-filter/config.yaml
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

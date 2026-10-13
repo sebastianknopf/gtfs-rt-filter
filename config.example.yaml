@@ -1,0 +1,26 @@
+app:
+  host: 0.0.0.0
+  port: 8080
+
+entities:
+  - type: service-alerts
+    from: http://127.0.0.1:8081/rt/service-alerts.pbf
+    to: /filtered/rt/service-alerts.pbf
+    filters:
+      - agency_id: "de:vpe:agency:1"
+      - agency_id: "ch:1:sboid:*"
+      # - route_type: 700
+
+  - type: trip-updates
+    from: http://127.0.0.1:8081/rt/trip-updates.pbf
+    to: /filtered/rt/trip-updates.pbf
+    filters:
+      - route_id: "de:vpe:04743_:"
+      - route_id: "de:vpe:02*"
+
+  - type: vehicle-positions
+    from: http://127.0.0.1:8081/rt/vehicle-positions.pbf
+    to: /filtered/rt/vehicle-positions.pbf
+    filters:
+      - route_id: "de:vpe:04*"
+      # - exclude: /path/to/polygons.geojson
