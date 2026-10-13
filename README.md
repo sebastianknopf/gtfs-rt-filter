@@ -38,7 +38,7 @@ permissions, enabling the service, logs, upgrades, and removal.
 ## Tests and Releases
 
 GitHub Actions runs tests on pushes, pull requests, and version tags. Push a tag
-(e.g. `v0.1.0`) to run the release workflow, which builds wheel/source archives
+(e.g. `0.1.0`) to run the release workflow, which builds wheel/source archives
 and attaches them to a GitHub Release. The repository needs GitHub Actions
 permission to create releases (`contents: write`). See
 [Versioning and Releases](docs/versioning.md).
