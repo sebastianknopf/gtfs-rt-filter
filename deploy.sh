@@ -22,6 +22,8 @@ Install or update gtfs-rt-filter for systemd on Linux.
   --link   Create /usr/local/bin/gtfs-rt-filter symlink.
   --help   Display this help.
 
+A complete Git checkout (including .git) is required for setuptools-scm.
+
 Run from the extracted project directory. The script asks for sudo/root
 privileges, installs the project under /opt/gtfs-rt-filter, and enables
 and starts the systemd service. Existing configuration is preserved.
@@ -51,6 +53,9 @@ confirm() {
 command -v systemctl >/dev/null || fail 'systemd (systemctl) is required.'
 command -v python3 >/dev/null || fail 'python3 is required.'
 [[ -f "$SOURCE_DIR/pyproject.toml" && -f "$SOURCE_DIR/deploy/gtfs-rt-filter.service" ]] || fail 'Run deploy.sh from the complete project distribution.'
+[[ -d "$SOURCE_DIR/.git" ]] || fail 'A complete Git checkout with a .git directory is required. Deploy from a git clone, not a source ZIP.'
+command -v git >/dev/null || fail 'git is required to determine the package version.'
+git -C "$SOURCE_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail 'The source directory must be a valid Git checkout.' 
 python3 - <<'PY' || fail 'Python 3.11 or newer is required.'
 import sys
 assert sys.version_info >= (3, 11)
@@ -78,15 +83,19 @@ mkdir -p "$APP_DIR" "$CONFIG_DIR"
 # Avoid copying a virtual environment or developer files. Preserve an existing
 # installation's venv and any local files in /opt.
 if [[ "$SOURCE_DIR" != "$APP_DIR" ]]; then
-  for entry in pyproject.toml README.md config.example.yaml .gitignore; do
+  for entry in pyproject.toml README.md LICENSE.md config.example.yaml .gitignore; do
     [[ ! -f "$SOURCE_DIR/$entry" ]] || install -m 644 "$SOURCE_DIR/$entry" "$APP_DIR/$entry"
   done
-  for directory in src docs deploy tests; do
+  for directory in src docs deploy tests .github; do
     if [[ -d "$SOURCE_DIR/$directory" ]]; then
       mkdir -p "$APP_DIR/$directory"
       cp -a "$SOURCE_DIR/$directory/." "$APP_DIR/$directory/"
     fi
   done
+  # setuptools-scm needs Git metadata to derive the version during pip install.
+  # Replace the previous Git metadata rather than merging potentially stale refs.
+  rm -rf -- "$APP_DIR/.git"
+  cp -a -- "$SOURCE_DIR/.git" "$APP_DIR/.git"
   install -m 755 "$SOURCE_DIR/deploy.sh" "$APP_DIR/deploy.sh"
 fi
 # All application code must be readable by the unprivileged service account.
@@ -96,6 +105,7 @@ log 'Preparing virtual environment and installing dependencies'
 if [[ ! -x "$APP_DIR/venv/bin/python" ]]; then
   python3 -m venv "$APP_DIR/venv" || fail 'Could not create venv. Install your distribution python3-venv package.'
 fi
+# Use the project directory as the build context so setuptools-scm sees .git.
 "$APP_DIR/venv/bin/python" -m pip install --upgrade "$APP_DIR"
 
 log 'Preparing configuration'

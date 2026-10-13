@@ -4,7 +4,15 @@ This guide installs the application under `/opt/gtfs-rt-filter`, keeps configura
 
 ## Quick Installation (recommended)
 
-From the extracted project root, run:
+Clone the repository including its `.git` directory (a GitHub-generated source
+archive is **not sufficient**). For example:
+
+```sh
+git clone https://github.com/sebastianknopf/gtfs-rt-filter.git
+cd gtfs-rt-filter
+```
+
+From the checked-out project root, run:
 
 ```sh
 ./deploy.sh
@@ -14,9 +22,9 @@ The script prompts before installation and service activation. It requests
 administrator privileges using `sudo` if needed. It performs the following
 steps in order:
 
-1. Checks Linux, systemd, and Python 3.11+.
+1. Checks Linux, systemd, Git metadata, and Python 3.11+.
 2. Creates the `gtfsrtfilter` system account if it does not exist.
-3. Copies the application to `/opt/gtfs-rt-filter` without copying a local `venv`.
+3. Copies the application **including `.git`** to `/opt/gtfs-rt-filter`, without copying a local `venv`.
 4. Creates or reuses `/opt/gtfs-rt-filter/venv` and installs the package.
 5. Creates `/etc/gtfs-rt-filter/config.yaml` from the example **only if missing**.
 6. Installs the supplied systemd unit and reloads systemd.
@@ -41,6 +49,8 @@ upstream feeds and restart the service afterward. The installer is intended
 for trusted project sources. It installs Python dependencies using pip and
 requires network access to your configured package index.
 
+The script requires a full Git checkout; it replaces the deployed `.git` directory with the checkout metadata on each update. Do not edit or commit directly in `/opt/gtfs-rt-filter`.
+
 The script is safe to rerun for updates: it reuses the service account and
 virtual environment, preserves configuration, refreshes the installed package,
 and restarts the service if you approve. It does not delete files that are no
@@ -50,7 +60,7 @@ longer present in the new project version.
 
 ### 1. Prerequisites
 
-Install Python 3.11 or newer, its `venv` module, and `pip`. Run the commands below from the extracted project directory on a system using systemd. The example assumes the source tree has already been copied to `/opt/gtfs-rt-filter` (for example, using `sudo mkdir -p /opt/gtfs-rt-filter` and `sudo cp -a . /opt/gtfs-rt-filter/` from the project root).
+Install Python 3.11 or newer, its `venv` module, `pip`, and Git. Run the commands below from the extracted project directory on a system using systemd. The example assumes a complete Git checkout, including `.git`, has already been copied to `/opt/gtfs-rt-filter` (for example, using `sudo mkdir -p /opt/gtfs-rt-filter` and `sudo cp -a . /opt/gtfs-rt-filter/` from the project root).
 
 ### 2. Install the Application
 
@@ -58,6 +68,7 @@ Install Python 3.11 or newer, its `venv` module, and `pip`. Run the commands bel
 cd /opt/gtfs-rt-filter
 sudo python3 -m venv venv
 sudo venv/bin/python -m pip install .
+# setuptools-scm reads the local .git directory and writes version.py
 ```
 
 The installation is isolated in `/opt/gtfs-rt-filter/venv`. Do not install project files or a virtual environment directly into `/usr/local/bin`: that directory is intended for commands, not application trees.
