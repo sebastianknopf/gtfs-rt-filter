@@ -34,6 +34,16 @@ The installer preserves an existing configuration. **Deploy from a complete Git 
 
 To remove the installation, run `./uninstall.sh` (see the guide for preservation options).
 
+To apply YAML or GeoJSON changes without interrupting the server, run:
+
+```sh
+sudo systemctl reload gtfs-rt-filter
+```
+
+A reload replaces the active feed configuration and HTTP endpoints. Invalid
+configuration leaves the previous settings active (check `journalctl` for errors).
+Changing the listening host or port requires `systemctl restart` instead.
+
 See the [complete systemd deployment guide](docs/systemd.md) for installation,
 permissions, enabling the service, logs, upgrades, and removal.
 

@@ -16,7 +16,7 @@ def main() -> None:
         os.environ["GTFS_RT_FILTER_CONFIG"] = args.config
         uvicorn.run("gtfsrtfilter.runtime:app_factory", factory=True, host=config.app.host, port=config.app.port, reload=True, reload_dirs=["src"])
     else:
-        uvicorn.run(create_app(config), host=config.app.host, port=config.app.port)
+        uvicorn.run(create_app(config, config_path=args.config), host=config.app.host, port=config.app.port)
 
 if __name__ == "__main__":
     main()

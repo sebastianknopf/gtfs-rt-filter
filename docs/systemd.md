@@ -129,7 +129,28 @@ sudo systemctl stop gtfs-rt-filter
 sudo systemctl start gtfs-rt-filter
 ```
 
-Restart the service after changes to YAML or GeoJSON files, because configuration is loaded at startup. After modifying the **unit file**, also run `sudo systemctl daemon-reload` before restarting.
+Reload YAML and GeoJSON changes without restarting the HTTP server:
+
+```sh
+sudo systemctl reload gtfs-rt-filter
+sudo journalctl -u gtfs-rt-filter -n 30 --no-pager
+```
+
+The reload sends `SIGHUP` to the running process. It reloads the YAML, rebuilds
+all entity filters (including GeoJSON polygons), and replaces the active HTTP
+path mapping atomically. Requests already running finish with the previous
+configuration. New or removed endpoint paths take effect immediately.
+
+**Important:** A malformed configuration or missing GeoJSON file is logged and
+the last valid configuration remains active. `systemctl reload` returning success
+only confirms that the signal was sent, not that validation succeeded. Inspect
+the journal for `Configuration reloaded successfully` or `Configuration reload
+failed`. Changes to `app.host` or `app.port` require a full restart; they are
+rejected during reload.
+
+After modifying the **unit file**, run `sudo systemctl daemon-reload` and
+restart the service to apply the new unit definition. Installing this update
+for the first time requires a restart to load the new Python reload handler.
 
 To update using the installer, run `./install.sh` from the new extracted project directory. Alternatively, after updating the source files in `/opt/gtfs-rt-filter`, run:
 
