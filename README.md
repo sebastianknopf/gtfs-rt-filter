@@ -25,12 +25,14 @@ Run tests with `pytest`.
 For guided installation or updates on a systemd-based Linux host, run:
 
 ```sh
-./deploy.sh
+./install.sh
 ```
 
-Use `./deploy.sh --yes` for noninteractive installation or add `--link` to
+The installer asks separately whether to install the systemd unit, enable it at boot, and start it. Use `./install.sh --yes` for noninteractive installation or add `--link` to
 create an optional command symlink under `/usr/local/bin`.
 The installer preserves an existing configuration. **Deploy from a complete Git clone, not a GitHub source ZIP:** the installer copies `.git` into `/opt/gtfs-rt-filter` so `setuptools-scm` can calculate the version.
+
+To remove the installation, run `./uninstall.sh` (see the guide for preservation options).
 
 See the [complete systemd deployment guide](docs/systemd.md) for installation,
 permissions, enabling the service, logs, upgrades, and removal.

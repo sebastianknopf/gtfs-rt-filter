@@ -15,10 +15,10 @@ cd gtfs-rt-filter
 From the checked-out project root, run:
 
 ```sh
-./deploy.sh
+./install.sh
 ```
 
-The script prompts before installation and service activation. It requests
+The script prompts separately for service unit installation, enabling at boot, and starting/restarting. It requests
 administrator privileges using `sudo` if needed. It performs the following
 steps in order:
 
@@ -29,18 +29,31 @@ steps in order:
 5. Creates `/etc/gtfs-rt-filter/config.yaml` from the example **only if missing**.
 6. Installs the supplied systemd unit and reloads systemd.
 7. Optionally creates the `/usr/local/bin/gtfs-rt-filter` command symlink.
-8. Enables and starts (or restarts) the service, if confirmed.
+8. Separately asks whether to enable the service at boot.
+9. Separately asks whether to start/restart the service now.
 
 For a noninteractive deployment accepting defaults:
 
 ```sh
-./deploy.sh --yes
+./install.sh --yes
+```
+
+To install without registering a systemd service:
+
+```sh
+./install.sh --no-service
+```
+
+To install the service but leave it disabled and stopped:
+
+```sh
+./install.sh --yes --no-enable --no-start
 ```
 
 To also create the optional command symlink:
 
 ```sh
-./deploy.sh --yes --link
+./install.sh --yes --link
 ```
 
 **Important:** The script does not overwrite an existing configuration. On a
@@ -118,13 +131,46 @@ sudo systemctl start gtfs-rt-filter
 
 Restart the service after changes to YAML or GeoJSON files, because configuration is loaded at startup. After modifying the **unit file**, also run `sudo systemctl daemon-reload` before restarting.
 
-To update using the installer, run `./deploy.sh` from the new extracted project directory. Alternatively, after updating the source files in `/opt/gtfs-rt-filter`, run:
+To update using the installer, run `./install.sh` from the new extracted project directory. Alternatively, after updating the source files in `/opt/gtfs-rt-filter`, run:
 
 ```sh
 cd /opt/gtfs-rt-filter
 sudo venv/bin/python -m pip install --upgrade .
 sudo systemctl restart gtfs-rt-filter
 ```
+
+## Uninstallation
+
+From the project checkout, run:
+
+```sh
+./uninstall.sh
+```
+
+The uninstaller separately asks to stop/disable and remove the systemd unit,
+remove the managed `/usr/local/bin/gtfs-rt-filter` symlink, remove the
+application directory, remove the configuration directory, and delete the
+`gtfsrtfilter` system account. It preserves configuration and the account by
+default in noninteractive mode. **Review the prompts carefully:** removing the
+application directory also removes its deployed Git checkout and virtual
+environment. The original source checkout is not touched.
+
+For unattended removal of the service, application and managed symlink while
+preserving configuration and account:
+
+```sh
+./uninstall.sh --yes
+```
+
+To remove configuration and the service account as well:
+
+```sh
+./uninstall.sh --yes --purge
+```
+
+The uninstaller does not remove unrelated files or a preexisting symlink with a
+different target. It does not delete a service account that is still in use by
+running processes.
 
 ## Disable or Remove the Service
 

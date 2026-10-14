@@ -12,21 +12,26 @@ BIN_LINK=/usr/local/bin/gtfs-rt-filter
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ASSUME_YES=false
 INSTALL_LINK=false
+INSTALL_SERVICE=true
+ENABLE_SERVICE=true
+START_SERVICE=true
 
 usage() {
   cat <<'HELP'
-Usage: ./deploy.sh [--yes] [--link] [--help]
+Usage: ./install.sh [--yes] [--link] [--help]
 
 Install or update gtfs-rt-filter for systemd on Linux.
   --yes    Accept defaults without prompting (does not overwrite config).
   --link   Create /usr/local/bin/gtfs-rt-filter symlink.
+  --no-service  Skip systemd unit installation and activation.
+  --no-enable   Do not enable automatic startup.
+  --no-start    Do not start/restart the service.
   --help   Display this help.
 
 A complete Git checkout (including .git) is required for setuptools-scm.
 
 Run from the extracted project directory. The script asks for sudo/root
-privileges, installs the project under /opt/gtfs-rt-filter, and enables
-and starts the systemd service. Existing configuration is preserved.
+privileges, installs the project under /opt/gtfs-rt-filter, and offers separate steps to register, enable, and start the systemd service. Existing configuration is preserved.
 HELP
 }
 
@@ -34,6 +39,9 @@ for arg in "$@"; do
   case "$arg" in
     --yes) ASSUME_YES=true ;;
     --link) INSTALL_LINK=true ;;
+    --no-service) INSTALL_SERVICE=false; ENABLE_SERVICE=false; START_SERVICE=false ;;
+    --no-enable) ENABLE_SERVICE=false ;;
+    --no-start) START_SERVICE=false ;;
     --help|-h) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -52,7 +60,7 @@ confirm() {
 [[ "$(uname -s)" == Linux ]] || fail 'Linux is required.'
 command -v systemctl >/dev/null || fail 'systemd (systemctl) is required.'
 command -v python3 >/dev/null || fail 'python3 is required.'
-[[ -f "$SOURCE_DIR/pyproject.toml" && -f "$SOURCE_DIR/deploy/gtfs-rt-filter.service" ]] || fail 'Run deploy.sh from the complete project distribution.'
+[[ -f "$SOURCE_DIR/pyproject.toml" && -f "$SOURCE_DIR/deploy/gtfs-rt-filter.service" ]] || fail 'Run install.sh from the complete project distribution.'
 [[ -d "$SOURCE_DIR/.git" ]] || fail 'A complete Git checkout with a .git directory is required. Deploy from a git clone, not a source ZIP.'
 command -v git >/dev/null || fail 'git is required to determine the package version.'
 git -C "$SOURCE_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail 'The source directory must be a valid Git checkout.' 
@@ -64,10 +72,10 @@ PY
 if (( EUID != 0 )); then
   command -v sudo >/dev/null || fail 'Run as root or install sudo.'
   log 'Requesting administrator privileges'
-  exec sudo -- "$SOURCE_DIR/deploy.sh" "$@"
+  exec sudo -- "$SOURCE_DIR/install.sh" "$@"
 fi
 
-printf 'Deploy %s\n  Source: %s\n  Application: %s\n  Configuration: %s\n  Unit: %s\n' \
+printf 'Install %s\n  Source: %s\n  Application: %s\n  Configuration: %s\n  Unit: %s\n' \
   "$APP_NAME" "$SOURCE_DIR" "$APP_DIR" "$CONFIG_FILE" "$UNIT_FILE"
 confirm 'Proceed with installation/update?' || { echo 'Cancelled.'; exit 0; }
 
@@ -96,7 +104,7 @@ if [[ "$SOURCE_DIR" != "$APP_DIR" ]]; then
   # Replace the previous Git metadata rather than merging potentially stale refs.
   rm -rf -- "$APP_DIR/.git"
   cp -a -- "$SOURCE_DIR/.git" "$APP_DIR/.git"
-  install -m 755 "$SOURCE_DIR/deploy.sh" "$APP_DIR/deploy.sh"
+  install -m 755 "$SOURCE_DIR/install.sh" "$APP_DIR/install.sh"
 fi
 # All application code must be readable by the unprivileged service account.
 chmod 755 "$APP_DIR"
@@ -119,9 +127,16 @@ fi
 chmod 755 "$CONFIG_DIR"
 # Do not loosen permissions on an existing config, which may contain secrets.
 
-log 'Installing systemd unit'
-install -m 644 "$APP_DIR/deploy/gtfs-rt-filter.service" "$UNIT_FILE"
-systemctl daemon-reload
+if "$INSTALL_SERVICE" && confirm 'Install/update the systemd service unit?'; then
+  log 'Installing systemd unit'
+  install -m 644 "$APP_DIR/deploy/gtfs-rt-filter.service" "$UNIT_FILE"
+  systemctl daemon-reload
+else
+  INSTALL_SERVICE=false
+  ENABLE_SERVICE=false
+  START_SERVICE=false
+  echo 'Skipped systemd unit installation.'
+fi
 
 if "$INSTALL_LINK" || { ! "$ASSUME_YES" && confirm "Create optional command symlink at $BIN_LINK?"; }; then
   if [[ -L "$BIN_LINK" && "$(readlink "$BIN_LINK")" == "$APP_DIR/venv/bin/gtfs-rt-filter" ]]; then
@@ -133,13 +148,22 @@ if "$INSTALL_LINK" || { ! "$ASSUME_YES" && confirm "Create optional command syml
   fi
 fi
 
-if confirm 'Enable and start/restart the systemd service now?'; then
-  systemctl enable "$APP_NAME.service"
-  systemctl restart "$APP_NAME.service"
-  systemctl --no-pager --full status "$APP_NAME.service" || true
-else
-  echo "Service installed but not started. Run: systemctl enable --now $APP_NAME"
+if "$INSTALL_SERVICE"; then
+  if "$ENABLE_SERVICE" && confirm 'Enable the systemd service at boot?'; then
+    log 'Enabling systemd service'
+    systemctl enable "$APP_NAME.service"
+  else
+    echo "Service not enabled by this run. To enable: systemctl enable $APP_NAME"
+  fi
+
+  if "$START_SERVICE" && confirm 'Start/restart the systemd service now?'; then
+    log 'Starting/restarting systemd service'
+    systemctl restart "$APP_NAME.service"
+    systemctl --no-pager --full status "$APP_NAME.service" || true
+  else
+    echo "Service not started by this run. To start: systemctl start $APP_NAME"
+  fi
 fi
 
-log 'Deployment finished'
+log 'Installation finished'
 printf 'Config: %s\nLogs: journalctl -u %s -f\n' "$CONFIG_FILE" "$APP_NAME"
