@@ -1,5 +1,5 @@
 [Unit]
-Description=GTFS-Realtime filtering proxy
+Description=GTFS-RT filtering proxy
 After=network-online.target
 Wants=network-online.target
 
