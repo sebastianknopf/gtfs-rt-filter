@@ -4,6 +4,7 @@ import asyncio
 import pytest
 
 from gtfsrtfilter.config import load_config
+from gtfsrtfilter import server
 from gtfsrtfilter.server import create_app
 
 
@@ -22,6 +23,7 @@ async def test_sighup_reloads_routes_and_keeps_last_good_config(tmp_path, monkey
 
     write_config("/old")
     app = create_app(load_config(path), config_path=path)
+    monkeypatch.setattr(server.signal, "SIGHUP", 1, raising=False)
     loop = asyncio.get_running_loop()
     callbacks = {}
     monkeypatch.setattr(loop, "add_signal_handler", lambda sig, fn: callbacks.setdefault(sig, fn))

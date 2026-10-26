@@ -21,7 +21,7 @@ def create_app(config: Config, config_path: str | Path | None = None) -> FastAPI
     """Create the HTTP application. Pass config_path to enable SIGHUP reloads."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=False) as client:
             feed_client = FeedClient(client)
             app.state.service = FeedService(config, feed_client)
             loop = asyncio.get_running_loop()
@@ -59,9 +59,21 @@ def create_app(config: Config, config_path: str | Path | None = None) -> FastAPI
     async def handle(request: Request, path: str):
         json_output = "json" in request.query_params or "debug" in request.query_params
         try:
-            data = await request.app.state.service.process(request.url.path, json_output)
+            data = await request.app.state.service.process(
+                request.url.path, json_output, authorization=request.headers.get("authorization")
+            )
         except KeyError:
             return Response("Not Found", status_code=404, media_type="text/plain")
+        except httpx.HTTPStatusError as exc:
+            upstream = exc.response
+            if upstream.status_code in (401, 403):
+                headers = {"Cache-Control": "no-store"}
+                if upstream.status_code == 401 and "www-authenticate" in upstream.headers:
+                    headers["WWW-Authenticate"] = upstream.headers["www-authenticate"]
+                return Response(status_code=upstream.status_code, headers=headers)
+            
+            return Response("Upstream request failed", status_code=502, media_type="text/plain",
+                            headers={"Cache-Control": "no-store"})
         except httpx.TimeoutException:
             return Response("Upstream request timed out", status_code=504, media_type="text/plain")
         except httpx.HTTPError:

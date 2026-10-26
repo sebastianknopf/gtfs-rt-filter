@@ -19,9 +19,9 @@ class FeedService:
         self.client = client
         self.routes = {entity.to: (str(entity.source), FILTERS[entity.type](entity.filters)) for entity in config.entities}
 
-    async def process(self, path: str, json_output: bool) -> bytes:
+    async def process(self, path: str, json_output: bool, authorization: str | None = None) -> bytes:
         url, filter_instance = self.routes[path]
-        payload = await self.client.fetch(url)
+        payload = await self.client.fetch(url, authorization=authorization)
         return await asyncio.to_thread(self._transform, payload, filter_instance, json_output)
 
     @staticmethod
